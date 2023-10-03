@@ -1,11 +1,10 @@
-# configured aws provider with proper credentials
 provider "aws" {
   region  = "us-east-1"
   profile = "sheyi"
 }
 
 
-# create default vpc if one does not exit
+# create default vpc if one does not exist
 resource "aws_default_vpc" "default_vpc" {
 
   tags = {
@@ -13,13 +12,11 @@ resource "aws_default_vpc" "default_vpc" {
   }
 }
 
-
-# use data source to get all avalablility zones in region
+# use data source to get all avalaibility zones in region
 data "aws_availability_zones" "available_zones" {}
 
-
 # create default subnet if one does not exit
-resource "aws_default_subnet" "default_az1" {
+resource "aws_default_subnet" "default_azl" {
   availability_zone = data.aws_availability_zones.available_zones.names[0]
 
   tags = {
@@ -27,29 +24,20 @@ resource "aws_default_subnet" "default_az1" {
   }
 }
 
-
 # create security group for the ec2 instance
-resource "aws_security_group" "ec2_security_group_nexus" {
-  name        = "ec2 security group_nexus"
+resource "aws_security_group" "ec2_security_group" {
+  name        = "ec2 security group"
   description = "allow access on ports 8080 and 22"
   vpc_id      = aws_default_vpc.default_vpc.id
 
   # allow access on port 8080
   ingress {
-    description = "nexus access"
-    from_port   = 8081
-    to_port     = 8081
+    description = "http proxy access"
+    from_port   = 8080
+    to_port     = 8080
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
-
-  # ingress {
-  #   description      = "http proxy access"
-  #   from_port        = 8082
-  #   to_port          = 8082
-  #   protocol         = "tcp"
-  #   cidr_blocks      = ["0.0.0.0/0"]
-  # }
 
   # allow access on port 22
   ingress {
@@ -59,6 +47,23 @@ resource "aws_security_group" "ec2_security_group_nexus" {
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
+  ingress {
+    description = "http access"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+
+  ingress {
+    description = "https access"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
 
   egress {
     from_port   = 0
@@ -68,10 +73,9 @@ resource "aws_security_group" "ec2_security_group_nexus" {
   }
 
   tags = {
-    Name = "nexus server security group"
+    Name = "jenkins server security group"
   }
 }
-
 
 # use data source to get a registered amazon linux 2 ami
 data "aws_ami" "ubuntu" {
@@ -91,21 +95,22 @@ data "aws_ami" "ubuntu" {
   owners = ["099720109477"]
 }
 
-# launch the ec2 instance and install website
+# launch the ec2 instance
 resource "aws_instance" "ec2_instance" {
   ami                    = data.aws_ami.ubuntu.id
-  instance_type          = "t3.xlarge"
-  subnet_id              = aws_default_subnet.default_az1.id
-  vpc_security_group_ids = [aws_security_group.ec2_security_group_nexus.id]
+  instance_type          = "t2.small"
+  subnet_id              = aws_default_subnet.default_azl.id
+  vpc_security_group_ids = [aws_security_group.ec2_security_group.id]
   key_name               = "cloudconvokey"
+  user_data              = file("install_jenkins.sh")
 
   tags = {
-    Name = "nexus_server"
+    Name = "jenkins_server"
   }
 }
 
-
+# print the url of the jenkins server
 # print the url of the jenkins server
 output "website_url" {
-  value = join("", ["http://", aws_instance.ec2_instance.public_dns, ":", "8081"])
+  value = join("", ["http://", aws_instance.ec2_instance.public_ip, ":", "8080"])
 }
