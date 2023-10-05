@@ -1,0 +1,66 @@
+SonarQube Installation in ubuntu 16.04 t2 medium
+Use apt-get to install the required packages.
+sudo apt-get update
+sudo apt-get install unzip software-properties-common wget default-jdk -y
+
+Install the PostgreSQL database service.
+
+sudo apt-get install postgresql postgresql-contrib -y
+
+Access the Postgres database service command-line.
+sudo su - postgres
+psql
+Create a Postgres user named sonarqube,Create a Postgres database named sonarqube. Give the PostgreSQL user named sonarqube permission over the database named sonarqube
+CREATE USER sonarqube WITH PASSWORD 'password';
+CREATE DATABASE sonarqube OWNER sonarqube;
+GRANT ALL PRIVILEGES ON DATABASE sonarqube TO sonarqube;
+\q
+exit
+Download the Sonarqube package and move it to the OPT directory.
+sudo mkdir /downloads/sonarqube -p
+cd /downloads/sonarqube
+sudo wget https://binaries.sonarsource.com/Distribution/sonarqube/sonarqube-7.9.1.zip
+sudo unzip sonarqube-7.9.1.zip
+sudo mv sonarqube-7.9.1 /opt/sonarqube
+Create a new Linux account named sonarqube, Set the correct file permission on the sonarqube directory.
+sudo adduser --system --no-create-home --group --disabled-login sonarqube
+sudo chown -R sonarqube:sonarqube /opt/sonarqube
+Edit the sonar.sh configuration file.
+sudo vi /opt/sonarqube/bin/linux-x86-64/sonar.sh
+Configure the following options:
+RUN_AS_USER=sonarqube
+Edit the sonar.properties configuration file.
+sudo vi /opt/sonarqube/conf/sonar.properties
+Configure the following options:
+sonar.jdbc.username=sonarqube
+sonar.jdbc.password=password
+sonar.jdbc.url=jdbc:postgresql://localhost/sonarqube
+sonar.web.javaAdditionalOpts=-server
+sonar.web.host=0.0.0.0
+
+
+
+Create a Linux configuration file named 99-sonarqube.conf
+sudo vi /etc/security/limits.d/99-sonarqube.conf
+Here is the content of the 99-sonarqube.conf file.
+sonarqube   -   nofile   65536
+sonarqube   -   nproc    4096
+
+
+
+Edit the sysctl.conf configuration file.
+sudo vi /etc/sysctl.conf
+Add the following lines at the end of the sysctl.conf file.
+vm.max_map_count=262144
+fs.file-max=65536
+
+
+Reboot your computer to enable the new configuration
+sudo reboot
+Start the Sonarqube service.
+sudo /opt/sonarqube/bin/linux-x86-64/sonar.sh start
+Use the following command to monitor the SonarQube log.
+sudo tail -f /opt/sonarqube/logs/sonar.log
+http://54.145.29.47:8080/sonarqube-webhook
+
+
